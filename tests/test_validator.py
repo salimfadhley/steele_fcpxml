@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from steele_fcpxml.builder import FCPXML
 from steele_fcpxml.validator import FCPXMLValidator
 
 
@@ -98,6 +100,40 @@ def test_validator_detects_invalid_xml(invalid_fcpxml: str) -> None:
 def test_validator_handles_missing_file() -> None:
     with pytest.raises(FileNotFoundError):
         FCPXMLValidator("/nonexistent/file.fcpxml")
+
+
+def test_validator_sequential_uses_timeline_offset_not_source_start(
+    mock_ffprobe: Callable[..., None], tmp_path: Path
+) -> None:
+    """A correctly-built contiguous timeline must validate as sequential.
+
+    Each clip is taken from a different *source* in-point (its ``start``
+    attribute), but the clips sit back-to-back on the timeline (their
+    ``offset`` attributes are contiguous). Sequentiality must be judged on
+    ``offset``, not ``start`` - otherwise scattered source in-points wrongly
+    look like gaps.
+    """
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"fake")
+    mock_ffprobe()
+
+    output = tmp_path / "sequential.fcpxml"
+    # First clip is taken from 60s into the source, and the in-points are not
+    # monotonic - realistic for a supercut. The timeline is still contiguous.
+    (
+        FCPXML("Ev", "Pr")
+        .add_clip(video, in_point=60.0, duration=5.0)
+        .add_clip(video, in_point=10.0, duration=5.0)
+        .add_clip(video, in_point=90.0, duration=5.0)
+        .write(output)
+    )
+
+    result = FCPXMLValidator(output).validate()
+
+    assert result.valid is True, result.errors
+    assert result.info["clips_sequential"] is True
+    sequential_warnings = [w for w in result.warnings if "sequential" in w.lower()]
+    assert sequential_warnings == []
 
 
 def test_validator_report_generation(valid_fcpxml: str, tmp_path: Path) -> None:

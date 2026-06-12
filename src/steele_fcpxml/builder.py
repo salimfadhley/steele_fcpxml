@@ -140,7 +140,12 @@ class FCPXML:
 
         Returns:
             ``self`` for chaining.
+
+        Raises:
+            ValueError: If ``duration`` is not greater than zero.
         """
+        if duration <= 0:
+            raise ValueError(f"duration must be > 0, got {duration}")
         self._spec.items.append(GapSpec(duration=duration, name=name))
         self._timeline_pos += duration
         return self

@@ -309,3 +309,48 @@ def test_no_duplicate_ids(mock_ffprobe: Callable[..., None], tmp_path: Path) -> 
         if eid:
             all_ids.append(eid)
     assert len(all_ids) == len(set(all_ids))
+
+
+def _rational(time_str: str) -> Fraction:
+    num, den = time_str.rstrip("s").split("/")
+    return Fraction(int(num), int(den))
+
+
+def test_sequence_duration_matches_spine_content(
+    mock_ffprobe: Callable[..., None], tmp_path: Path
+) -> None:
+    """The sequence duration must equal the sum of the spine item durations.
+
+    With fractional-second durations the per-item frame rounding (round-then-sum)
+    can disagree with rounding the grand total (sum-then-round). Two 0.5s clips
+    at 25 fps each round to 12 frames (round(12.5) -> 12), so the spine holds
+    24 frames while a naive total rounds 1.0s -> 25 frames. The sequence
+    duration must match the spine, otherwise the timeline has a phantom tail.
+    """
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"fake")
+    mock_ffprobe()
+
+    output = tmp_path / "test.fcpxml"
+    (
+        FCPXML("Ev", "Pr")
+        .add_clip(video, 0.0, duration=0.5)
+        .add_clip(video, 1.0, duration=0.5)
+        .write(output)
+    )
+
+    tree = ET.parse(output)
+    seq = tree.find(".//sequence")
+    spine = tree.find(".//spine")
+    assert seq is not None and spine is not None
+
+    seq_duration = _rational(seq.get("duration", "0/1s"))
+    content_duration = sum(
+        (
+            _rational(child.get("duration", "0/1s"))
+            for child in spine
+            if child.tag in ("asset-clip", "gap")
+        ),
+        Fraction(0),
+    )
+    assert seq_duration == content_duration

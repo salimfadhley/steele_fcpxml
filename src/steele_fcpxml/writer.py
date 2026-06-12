@@ -207,9 +207,17 @@ class FCPXMLWriter:
         event = ET.SubElement(library, "event", name=timeline.event_name)
         project = ET.SubElement(event, "project", name=timeline.project_name)
 
-        # Sequence
-        total_sec = sum(item.duration for item in timeline.items)
-        total_dur = seconds_to_rational(total_sec, timeline_fps)
+        # Sequence. Derive the total from the same per-item frame rounding the
+        # spine uses (round-then-sum), so the sequence duration matches the sum
+        # of the spine items exactly instead of drifting by a frame when clips
+        # have fractional-second durations.
+        total_frames = sum(
+            round(Fraction(str(item.duration)) * timeline_fps)
+            for item in timeline.items
+        )
+        total_dur = (
+            f"{total_frames * timeline_fps.denominator}/{timeline_fps.numerator}s"
+        )
 
         sequence = ET.SubElement(
             project,
