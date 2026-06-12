@@ -111,6 +111,18 @@ def test_add_gap_returns_self() -> None:
     assert result is builder
 
 
+def test_add_gap_rejects_zero_duration() -> None:
+    builder = FCPXML("Test", "Test")
+    with pytest.raises(ValueError, match="duration must be > 0"):
+        builder.add_gap(0.0)
+
+
+def test_add_gap_rejects_negative_duration() -> None:
+    builder = FCPXML("Test", "Test")
+    with pytest.raises(ValueError, match="duration must be > 0"):
+        builder.add_gap(-5.0)
+
+
 def test_add_marker_returns_self() -> None:
     builder = FCPXML("Test", "Test")
     result = builder.add_marker("Section 1")

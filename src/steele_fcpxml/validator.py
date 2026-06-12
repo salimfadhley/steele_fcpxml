@@ -336,26 +336,30 @@ class FCPXMLValidator:
             sequential = True
 
             for i, clip in enumerate(clips, 1):
-                start = self._parse_time(clip.get("start", "0s"))
+                # Sequentiality is about timeline position, which is the clip's
+                # ``offset`` - NOT its ``start`` (the in-point within the source
+                # media, which is unrelated to where the clip sits on the
+                # timeline).
+                offset = self._parse_time(clip.get("offset", "0s"))
                 duration = self._parse_time(clip.get("duration", "0s"))
 
-                if abs(start - expected_start) > 0.1:  # Allow 0.1s tolerance
+                if abs(offset - expected_start) > 0.1:  # Allow 0.1s tolerance
                     result.add_warning(
                         f"Clip {i} may not be sequential: "
-                        f"expected start={expected_start:.1f}s, got {start:.1f}s"
+                        f"expected offset={expected_start:.1f}s, got {offset:.1f}s"
                     )
                     sequential = False
 
-                # Calculate next expected start (this clip + potential gap)
-                expected_start = start + duration
+                # Calculate next expected position (this clip + potential gap)
+                expected_start = offset + duration
 
                 # Check if there's a gap after this clip
                 # (This is a simplified check; real gaps might be interspersed)
                 if i < len(clips):  # Not the last clip
                     # Look for gaps between this clip and the next
                     next_clip = clips[i]
-                    next_start = self._parse_time(next_clip.get("start", "0s"))
-                    gap_duration = next_start - (start + duration)
+                    next_offset = self._parse_time(next_clip.get("offset", "0s"))
+                    gap_duration = next_offset - (offset + duration)
                     if gap_duration > 0:
                         expected_start += gap_duration
 
