@@ -33,32 +33,85 @@ Typical workflows it supports:
 - **Iterative LLM-assisted edits.** Generate a draft FCPXML, the editor refines it in Resolve, the LLM regenerates with new clips and the editor merges. Round-trip via plain text Python source.
 - **Validation in CI.** A separate `steele-fcpxml validate <file>` CLI checks structure, missing media references, and frame-rate consistency before the file ever reaches the NLE.
 
-## Status
+## Public API
 
-**Pre-release.** The library exists upstream in the `mind_of_steele` private project where it has been used to build dozens of working FCPXML compilations for DaVinci Resolve. This repository is the extraction into a public, standalone, GPL-3-licensed package.
+The top-level surface is deliberately tiny - three names cover almost every use:
 
-A scaffold is in place. The Python source code and tests have not yet been ported into this repository - the porting work is the first task for the LLM contributor working here. See [`doc/prompts/`](doc/prompts/) for the porting brief, source-file inventory, and the protocol for asking the upstream LLM questions.
+```python
+from steele_fcpxml import FCPXML, FrameRate, tc
+```
+
+- `FCPXML` - the fluent timeline builder (`add_clip`, `add_gap`, `add_marker`, `fork`, `write`).
+- `FrameRate` - standard frame rates (`FPS_25`, `FPS_29_97`, ...) for the timeline.
+- `tc` - parse `"MM:SS"` / `"HH:MM:SS"` timecodes to seconds.
+
+A lower-level API (the spec dataclasses, the `FCPXMLWriter`, the probe result, and the `FCPXMLValidator`) is available from the submodules `steele_fcpxml.specs`, `steele_fcpxml.writer`, `steele_fcpxml.probe`, and `steele_fcpxml.validator` for callers who need it.
 
 ## Requirements
 
 - Python 3.12+
-- [`uv`](https://github.com/astral-sh/uv) for dependency management
 - [`ffmpeg`](https://ffmpeg.org/) installed on PATH (for the `ffprobe` binary used to detect frame rates and durations)
 
-## Quickstart (once the porting is done)
+## Installation
+
+```bash
+pip install steele-fcpxml
+```
+
+The only runtime dependency is `click` (for the CLI). `ffprobe` must be available on PATH for clip probing.
+
+## CLI
+
+```bash
+steele-fcpxml validate path/to/timeline.fcpxml
+steele-fcpxml validate --json path/to/timeline.fcpxml
+```
+
+## Development
+
+This project uses [`uv`](https://github.com/astral-sh/uv) for dependency management and `ruff` + `pyright` for quality gates.
 
 ```bash
 git clone https://github.com/salimfadhley/steele_fcpxml.git
 cd steele_fcpxml
 uv sync
-uv run pytest
+
+uv run pytest             # tests (mocked ffprobe; fast)
+uv run ruff check src tests
+uv run ruff format --check src tests
+uv run pyright
 ```
 
-The CLI:
+The default test suite mocks `ffprobe` and needs no media. A small set of tiny, GPL-licensed fixture clips in `tests/fixtures/` drives the real-`ffprobe` integration tests (`tests/test_probe_integration.py`), which skip automatically when `ffprobe` is not installed.
 
-```bash
-uv run steele-fcpxml validate path/to/timeline.fcpxml
-```
+## Making a release
+
+Versioning is **automatic and tag-driven** via [`hatch-vcs`](https://github.com/ofek/hatch-vcs): there is no version string to edit in the repository - the version is computed from the latest git tag at build time. A tag `v0.3.0` produces the distribution `steele_fcpxml-0.3.0`.
+
+To cut a release:
+
+1. Make sure `main` is green in CI (ruff, pyright, tests, and the wheel build all pass).
+2. Tag the commit and push the tag:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. Pushing a `v*` tag triggers `.github/workflows/release.yaml`, which builds the wheel and sdist and **publishes them to PyPI using Trusted Publishing (OIDC)** - no API token or password is stored anywhere.
+
+Tags follow [semantic versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`. Between tags, local and CI builds produce dev versions like `0.1.0.dev4+g<hash>`, which is expected.
+
+### One-time PyPI setup (already configured for this project)
+
+Trusted Publishing must be registered once on the PyPI side, under the project's *Publishing* settings (or as a "pending publisher" before the project's first release):
+
+| Field | Value |
+| --- | --- |
+| Owner | `salimfadhley` |
+| Repository | `steele_fcpxml` |
+| Workflow | `release.yaml` |
+| Environment | `pypi` |
 
 ## License
 
@@ -66,6 +119,5 @@ uv run steele-fcpxml validate path/to/timeline.fcpxml
 
 ## See also
 
-- The original FCPXML helper still lives at `/Users/salimfadhley/workspace/mind_of_steele/src/mind_of_steele/timeline_generators/fcpxml_helper.py` in the upstream private project, with tests at `/Users/salimfadhley/workspace/mind_of_steele/src/test_mind_of_steele/test_fcpxml_helper.py`.
 - DaVinci Resolve's FCPXML import documentation: https://documentation.blackmagicdesign.com/
 - The FCPXML schema reference: https://developer.apple.com/documentation/professional_video_applications/fcpxml_reference
