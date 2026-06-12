@@ -1,5 +1,19 @@
 name: Release
 
+# Builds distributions on any v* tag and publishes them to PyPI using
+# Trusted Publishing (OIDC) - no API token or password is stored in the repo.
+#
+# One-time PyPI setup required before the first publish:
+#   1. Sign in at https://pypi.org and go to "Your projects" ->
+#      "Publishing" (or create a "pending publisher" if the project does not
+#      exist yet).
+#   2. Add a GitHub trusted publisher with:
+#        Owner:           salimfadhley
+#        Repository:      steele_fcpxml
+#        Workflow name:   release.yml
+#        Environment:     pypi
+#   3. Push a tag like `v0.1.0` (after bumping the version in pyproject.toml).
+
 on:
   push:
     tags: ["v*"]
@@ -7,7 +21,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -25,3 +38,19 @@ jobs:
           name: dist
           path: dist/*
           if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # required for Trusted Publishing (OIDC)
+    steps:
+      - name: Download built distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
