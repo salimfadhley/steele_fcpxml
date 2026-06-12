@@ -1,6 +1,6 @@
 [project]
 name = "steele-fcpxml"
-version = "0.0.0"
+dynamic = ["version"]
 description = "A Python library for generating Final Cut Pro XML (FCPXML) timelines programmatically, designed to help video editors collaborate with LLMs on automatic edits."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -40,8 +40,11 @@ Homepage = "https://github.com/salimfadhley/steele_fcpxml"
 Issues = "https://github.com/salimfadhley/steele_fcpxml/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/steele_fcpxml"]
