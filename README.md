@@ -4,6 +4,12 @@ A Python library for generating Final Cut Pro XML (FCPXML) timelines programmati
 
 `steele-fcpxml` lets a script - or an LLM acting on behalf of a video editor - assemble an FCPXML timeline from a list of source clips, in/out points, gaps, and markers. The resulting `.fcpxml` file can be imported directly into DaVinci Resolve or Final Cut Pro and dropped onto the editor's timeline with every clip pre-positioned at the right source timecode.
 
+## Documentation
+
+- **[`doc/usage.md`](doc/usage.md)** - hands-on guide to the library, with common patterns and pitfalls.
+- **[`doc/ecosystem.md`](doc/ecosystem.md)** - where this library fits in a six-stage video-editing pipeline (acquisition -> transcription -> indexing -> discovery -> *assembly* -> refinement) and which open-source tools we pair it with.
+- **[`doc/llm-cookbook.md`](doc/llm-cookbook.md)** - a menu of patterns for LLM+Human teams: catchphrase supercuts, topic montages, cross-source comparisons, A/B variants, validation gates, and more.
+
 ## Use case
 
 Modern video editing increasingly involves an LLM assistant that scans large media archives, identifies relevant clips, and proposes assemblies. The bottleneck has traditionally been the last mile: turning a list of "use clip X from 1:23 to 1:35, then clip Y from 4:02 to 4:18" into something an NLE can actually open.
