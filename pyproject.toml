@@ -1,0 +1,70 @@
+[project]
+name = "steele-fcpxml"
+version = "0.0.0"
+description = "A Python library for generating Final Cut Pro XML (FCPXML) timelines programmatically, designed to help video editors collaborate with LLMs on automatic edits."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Sal Fadhley" },
+]
+keywords = [
+    "fcpxml",
+    "final-cut-pro",
+    "davinci-resolve",
+    "video-editing",
+    "timeline",
+    "edl",
+    "llm",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Multimedia :: Video :: Non-Linear Editor",
+]
+dependencies = [
+    "click>=8.1",
+]
+
+[project.scripts]
+steele-fcpxml = "steele_fcpxml.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/salimfadhley/steele_fcpxml"
+Issues = "https://github.com/salimfadhley/steele_fcpxml/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/steele_fcpxml"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "pyright>=1.1.350",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
