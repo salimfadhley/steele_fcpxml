@@ -17,7 +17,8 @@ validator) lives in the submodules ``steele_fcpxml.specs``,
 ``steele_fcpxml.validator``. See ``doc/usage.md`` for details.
 """
 
-from importlib.metadata import PackageNotFoundError, version as _version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
 
 from steele_fcpxml.builder import FCPXML
 from steele_fcpxml.timecode import FrameRate, tc
