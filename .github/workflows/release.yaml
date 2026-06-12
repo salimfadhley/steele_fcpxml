@@ -10,7 +10,7 @@ name: Release
 #   2. Add a GitHub trusted publisher with:
 #        Owner:           salimfadhley
 #        Repository:      steele_fcpxml
-#        Workflow name:   release.yml
+#        Workflow name:   release.yaml
 #        Environment:     pypi
 #   3. Push a tag like `v0.1.0` (after bumping the version in pyproject.toml).
 
