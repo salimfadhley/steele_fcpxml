@@ -123,3 +123,62 @@ def test_probe_non_standard_fps_computes_frame_duration(
     assert info.fps_standard is None
     assert info.frame_duration == "1/15s"
     assert (info.width, info.height) == (640, 480)
+
+
+def _filesystem_is_case_insensitive(tmp_path: Path) -> bool:
+    """Detect a case-insensitive filesystem by probing a known-case file."""
+    probe = tmp_path / "CaseProbe.tmp"
+    probe.write_bytes(b"x")
+    return (tmp_path / "caseprobe.tmp").exists()
+
+
+def test_probe_raises_on_case_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A path whose case does not byte-match the on-disk file is rejected.
+
+    On case-insensitive filesystems a wrong-case path passes ``exists()`` and
+    probes fine, but the wrong-case name would be written into the FCPXML and
+    rejected by DaVinci Resolve at export. The probe must refuse it up front.
+    """
+    if not _filesystem_is_case_insensitive(tmp_path):
+        pytest.skip("case-sensitive filesystem; cannot reproduce case mismatch")
+
+    on_disk = tmp_path / "Sample.MP4"
+    on_disk.write_bytes(b"fake")
+
+    # If the check ever lets the path through, this mock would let it "succeed".
+    def fake_run(cmd: list[str], **kwargs: Any) -> SimpleNamespace:
+        return SimpleNamespace(stdout="25/1,1920,1080\n120.0\n")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    with pytest.raises(FileNotFoundError) as exc:
+        _probe_video(tmp_path / "sample.mp4")
+
+    message = str(exc.value)
+    assert "Sample.MP4" in message
+    assert "sample.mp4" in message
+
+
+def test_probe_accepts_exact_case(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The exact on-disk casing probes normally (no false case-mismatch)."""
+    on_disk = tmp_path / "Sample.MP4"
+    on_disk.write_bytes(b"fake")
+
+    def fake_run(cmd: list[str], **kwargs: Any) -> SimpleNamespace:
+        return SimpleNamespace(stdout="25/1,1920,1080\n120.0\n")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    info = _probe_video(on_disk)
+    assert info.path == on_disk.resolve()
+
+
+def test_probe_missing_uses_filenotfounderror_not_case_error(tmp_path: Path) -> None:
+    """A truly absent file still raises plain FileNotFoundError (regression)."""
+    with pytest.raises(FileNotFoundError) as exc:
+        _probe_video(tmp_path / "nothing_here.mp4")
+    assert "case mismatch" not in str(exc.value)
