@@ -81,6 +81,34 @@ def clear_cache() -> None:
     _ffprobe_cache.clear()
 
 
+def _canonical_case(path: Path) -> Path | None:
+    """Return ``path`` carrying the real on-disk filename casing.
+
+    Returns ``None`` if no case-insensitively-matching entry exists in the
+    parent directory (i.e. the file is genuinely missing).
+
+    Why not just call ``path.exists()``? Because on case-insensitive
+    filesystems - macOS's default APFS, and SMB mounts to a NAS - ``exists()``
+    returns ``True`` for a path whose case does not byte-match the real file
+    (``foo.mp4`` "exists" when the file on disk is actually ``foo.MP4``), and
+    ``Path.resolve()`` does not fold the case back to what is on disk. Such a
+    path probes fine, but its wrong-case name is then written verbatim into the
+    FCPXML ``<media-rep src=...>`` element. DaVinci Resolve's export resolver is
+    case-strict and rejects the clip - a failure that surfaces only at export
+    time, the worst place to discover it. So we read the actual directory entry
+    and compare against the real on-disk name rather than trusting ``exists()``.
+    """
+    parent = path.parent
+    target = path.name.casefold()
+    try:
+        for child in parent.iterdir():
+            if child.name.casefold() == target:
+                return parent / child.name
+    except (FileNotFoundError, NotADirectoryError, PermissionError):
+        return None
+    return None
+
+
 def _probe_video(video_path: Path) -> VideoInfo:
     """Probe a video file with ffprobe and return :class:`VideoInfo`.
 
@@ -93,15 +121,25 @@ def _probe_video(video_path: Path) -> VideoInfo:
         :class:`VideoInfo` with fps, dimensions, and duration.
 
     Raises:
-        FileNotFoundError: If the video file does not exist.
+        FileNotFoundError: If the video file does not exist, or if the supplied
+            path's filename casing does not byte-match the on-disk file (see
+            :func:`_canonical_case`).
         RuntimeError: If ffprobe fails or returns unexpected output.
     """
     resolved = video_path.resolve()
     if resolved in _ffprobe_cache:
         return _ffprobe_cache[resolved]
 
-    if not resolved.exists():
+    on_disk = _canonical_case(resolved)
+    if on_disk is None:
         raise FileNotFoundError(f"Video file not found: {resolved}")
+    if on_disk.name != resolved.name:
+        raise FileNotFoundError(
+            f"Path case mismatch: caller passed {resolved.name!r} but the file "
+            f"on disk is {on_disk.name!r}. The FCPXML would emit the "
+            f"caller-supplied case and downstream tools (e.g. DaVinci Resolve) "
+            f"may reject it. Fix the path at the call site."
+        )
 
     cmd = [
         "ffprobe",
